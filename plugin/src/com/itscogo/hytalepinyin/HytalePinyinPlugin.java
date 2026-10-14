@@ -184,11 +184,24 @@ public class HytalePinyinPlugin extends JavaPlugin {
         logClientPatch("Client patch on this computer", clientPatchResult);
     }
 
+    /**
+     * Logs what installing or restoring did, also to client-patch.log in the
+     * plugin's data folder, which is easier to find than the game's log.
+     */
     void logClientPatch(String what, ClientPatch.Result result) {
-        getLogger().at(Level.INFO).log("%s: %s", what, result.state());
+        getLogger().at(Level.INFO).log("%s: %s, changed %s", what, result.state(), result.changed());
+        StringBuilder log = new StringBuilder(java.time.LocalDateTime.now() + " " + what + ": " + result.state() + "\n");
+        if (clientPatch != null) {
+            log.append("client: ").append(clientPatch.describe()).append('\n');
+        }
+        for (String file : result.changed()) {
+            log.append("changed ").append(file).append('\n');
+        }
         for (String problem : result.problems()) {
             getLogger().at(Level.WARNING).log("Client patch: %s", problem);
+            log.append("problem ").append(problem).append('\n');
         }
+        writeDataFile("client-patch.log", log.toString());
     }
 
     ClientPatch clientPatch() {
