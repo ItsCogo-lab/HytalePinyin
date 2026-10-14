@@ -33,8 +33,9 @@ import java.util.regex.Pattern;
  *    replaced if the game still has the exact original we were built from
  *    (originals.tsv), so a game update with new fonts is left alone.
  *  - HytalePinyin-Small.ttf, a small font with only the pinyin letters, added
- *    as the last fallback of every font family in UI/DesignSystem/Fonts.xaml
- *    (the menus and the loading screen). The game keeps its own .ttf files
+ *    as the last fallback of every font family in the menus' .xaml files
+ *    (UI/DesignSystem/Fonts.xaml, the theme, and any screen that names its
+ *    own fonts, like the loading screen). The game keeps its own .ttf files
  *    open while it runs, so we add a new font instead of changing them.
  *  - Language/zh-CN/client.lang (menu texts): each official text in
  *    client-labels.tsv is swapped for the one with pinyin, line by line, so
@@ -51,10 +52,15 @@ final class ClientPatch {
     private static final String RESOURCES = "/client-patch/";
     private static final String SMALL_FONT = "UI/Fonts/HytalePinyin-Small.ttf";
     private static final String CLIENT_LANG = "Language/zh-CN/client.lang";
-    private static final List<String> XAML = List.of("UI/DesignSystem/Fonts.xaml", "UI/DesignSystem/Fonts.TC.xaml");
     /** What we add at the end of each font family: the small font's family name. */
     private static final String FALLBACK = ", /Fonts/#HytalePinyin";
-    private static final Pattern FONT_FAMILY = Pattern.compile("(<FontFamily\\b[^>]*>)([^<]*)(</FontFamily>)");
+    /**
+     * A list of fonts in a .xaml file ("/Fonts/#Nunito Sans, /Fonts/#Noto Sans SC"),
+     * either as an attribute (FontFamily="..." or a Setter's Value="...") or
+     * as the text of a <FontFamily> element. Group 2 or 4 is the list.
+     */
+    private static final Pattern FONT_LIST =
+            Pattern.compile("(\")([^\"<>]*Fonts/#[^\"<>]*)\"|(>)([^<>]*Fonts/#[^<>]*)<");
     /** If this file exists the player ran /hanzi restore, and nothing is installed again until /hanzi install. */
     private static final String DISABLED = "disabled.txt";
 
@@ -72,8 +78,11 @@ final class ClientPatch {
         INCOMPLETE
     }
 
-    /** The result of install() or restore(): the state, and one line per problem for the log. */
-    record Result(State state, List<String> problems) {
+    /** The result of install() or restore(): the state, the files changed, and one line per problem. */
+    record Result(State state, List<String> changed, List<String> problems) {
+        Result(State state, List<String> problems) {
+            this(state, List.of(), problems);
+        }
     }
 
     /** Client/Data/Shared of the game, or null on a dedicated server. */
@@ -82,6 +91,11 @@ final class ClientPatch {
     ClientPatch(Path serverJar) {
         Path candidate = serverJar.getParent().getParent().resolve("Client/Data/Shared");
         this.shared = Files.isDirectory(candidate.resolve("UI/Fonts")) ? candidate : null;
+    }
+
+    /** Where the client is, for the log. */
+    String describe() {
+        return shared == null ? "none next to the server" : shared.toString();
     }
 
     boolean hasClient() {
@@ -115,7 +129,7 @@ final class ClientPatch {
             Files.move(old, backupDir());
         }
         List<String> problems = new ArrayList<>();
-        int changed = 0;
+        List<String> changed = new ArrayList<>();
 
         for (Map.Entry<String, String> atlas : originals().entrySet()) {
             String path = atlas.getKey();
@@ -132,7 +146,7 @@ final class ClientPatch {
                 }
                 backup(path);
                 Files.write(game, ours);
-                changed++;
+                changed.add(path);
             } catch (IOException e) {
                 problems.add(path + ": " + e);
             }
@@ -143,32 +157,26 @@ final class ClientPatch {
             Path game = shared.resolve(SMALL_FONT);
             if (!Files.exists(game) || !sha256(Files.readAllBytes(game)).equals(sha256(font))) {
                 Files.write(game, font);
-                changed++;
+                changed.add(SMALL_FONT);
             }
         } catch (IOException e) {
             problems.add(SMALL_FONT + ": " + e);
         }
 
-        for (String path : XAML) {
+        for (String path : xamlFiles()) {
             try {
                 Path game = shared.resolve(path);
-                if (!Files.exists(game)) {
-                    continue;
-                }
                 String text = Files.readString(game, StandardCharsets.UTF_8);
-                if (text.contains(FALLBACK)) {
+                String patched = withFallback(text);
+                if (patched.equals(text)) {
                     continue;
                 }
-                // appendReplacement treats "$" and "\" specially, hence quoteReplacement
-                Matcher m = FONT_FAMILY.matcher(text);
-                StringBuilder out = new StringBuilder();
-                while (m.find()) {
-                    m.appendReplacement(out, Matcher.quoteReplacement(m.group(1) + m.group(2) + FALLBACK + m.group(3)));
+                // Only a file with none of our fallbacks is an original worth keeping
+                if (!text.contains(FALLBACK)) {
+                    backup(path);
                 }
-                m.appendTail(out);
-                backup(path);
-                Files.writeString(game, out.toString(), StandardCharsets.UTF_8);
-                changed++;
+                Files.writeString(game, patched, StandardCharsets.UTF_8);
+                changed.add(path);
             } catch (IOException e) {
                 problems.add(path + ": " + e);
             }
@@ -186,15 +194,15 @@ final class ClientPatch {
                         backup(CLIENT_LANG);
                     }
                     Files.writeString(game, relabeled.text(), StandardCharsets.UTF_8);
-                    changed++;
+                    changed.add(CLIENT_LANG);
                 }
             }
         } catch (IOException e) {
             problems.add(CLIENT_LANG + ": " + e);
         }
 
-        State state = !problems.isEmpty() ? State.INCOMPLETE : changed > 0 ? State.CHANGED : State.INSTALLED;
-        return new Result(state, problems);
+        State state = !problems.isEmpty() ? State.INCOMPLETE : !changed.isEmpty() ? State.CHANGED : State.INSTALLED;
+        return new Result(state, changed, problems);
     }
 
     /**
@@ -206,18 +214,26 @@ final class ClientPatch {
             return new Result(State.NO_CLIENT, List.of());
         }
         List<String> problems = new ArrayList<>();
+        List<String> changed = new ArrayList<>();
         List<String> paths = new ArrayList<>(originals().keySet());
-        paths.addAll(XAML);
+        paths.addAll(xamlFiles());
         paths.add(CLIENT_LANG);
         for (String path : paths) {
-            Path backup = backupOf(path);
-            if (!Files.exists(backup)) {
-                continue;
-            }
             try {
                 // Only over our own version: after a game update the game's file is newer than the backup
-                if (isOurs(path)) {
+                if (!isOurs(path)) {
+                    continue;
+                }
+                Path backup = backupOf(path);
+                if (Files.exists(backup)) {
                     Files.copy(backup, shared.resolve(path), StandardCopyOption.REPLACE_EXISTING);
+                    changed.add(path);
+                } else if (path.endsWith(".xaml")) {
+                    // No copy (lost in a game update?): taking our fallback out gives the original
+                    Path game = shared.resolve(path);
+                    Files.writeString(game, Files.readString(game, StandardCharsets.UTF_8).replace(FALLBACK, ""),
+                            StandardCharsets.UTF_8);
+                    changed.add(path);
                 }
             } catch (IOException e) {
                 problems.add(path + ": " + e);
@@ -232,7 +248,7 @@ final class ClientPatch {
         Files.createDirectories(backupDir());
         Files.writeString(backupDir().resolve(DISABLED),
                 "HytalePinyin's client patch was removed with /hanzi restore. /hanzi install puts it back.\n");
-        return new Result(problems.isEmpty() ? State.DISABLED : State.INCOMPLETE, problems);
+        return new Result(problems.isEmpty() ? State.DISABLED : State.INCOMPLETE, changed, problems);
     }
 
     /** Lets install() run again after a restore. */
@@ -245,15 +261,41 @@ final class ClientPatch {
     private boolean isOurs(String path) throws IOException {
         Path game = shared.resolve(path);
         if (!Files.exists(game)) {
-            return true;
+            return false;
         }
-        if (XAML.contains(path)) {
+        if (path.endsWith(".xaml")) {
             return Files.readString(game, StandardCharsets.UTF_8).contains(FALLBACK);
         }
         if (path.equals(CLIENT_LANG)) {
             return relabel(Files.readString(game, StandardCharsets.UTF_8), labels(), true).count() > 0;
         }
         return sha256(Files.readAllBytes(game)).equals(sha256(resource("files/" + path)));
+    }
+
+    /** Every .xaml file of the menus, as paths from Client/Data/Shared with "/". */
+    private List<String> xamlFiles() throws IOException {
+        Path ui = shared.resolve("UI");
+        try (var files = Files.walk(ui)) {
+            return files.filter(f -> f.toString().endsWith(".xaml") && !f.startsWith(backupDir()))
+                    .map(f -> shared.relativize(f).toString().replace('\\', '/'))
+                    .sorted().toList();
+        }
+    }
+
+    /** The .xaml text with our small font at the end of every list of fonts that lacks it. */
+    static String withFallback(String xaml) {
+        Matcher m = FONT_LIST.matcher(xaml);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            boolean attribute = m.group(1) != null;
+            String fonts = attribute ? m.group(2) : m.group(4);
+            String patched = fonts.contains(FALLBACK) ? fonts : fonts.stripTrailing() + FALLBACK
+                    + fonts.substring(fonts.stripTrailing().length());
+            // appendReplacement treats "$" and "\" specially, hence quoteReplacement
+            m.appendReplacement(out, Matcher.quoteReplacement(attribute ? "\"" + patched + "\"" : ">" + patched + "<"));
+        }
+        m.appendTail(out);
+        return out.toString();
     }
 
     private void backup(String path) throws IOException {
