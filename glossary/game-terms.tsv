@@ -1,0 +1,10 @@
+# Words the dictionary does not have, used when splitting texts into words.
+# Columns: hanzi, pinyin (syllables separated by spaces), English meaning.
+hanzi	pinyin	english
+铁栏杆	tiě lán gān	iron railing
+菌杆	jūn gǎn	mushroom stem
+菌枝	jūn zhī	mushroom branch
+叉路	chà lù	fork in the road, crossroads
+倒也	dào yě	(adverb) all the same, actually
+五叉	wǔ chā	five-pronged (branch)
+石锥	shí zhuī	rock spike (stalagmite)

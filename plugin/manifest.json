@@ -1,0 +1,16 @@
+{
+  "Group": "ItsCogo",
+  "Name": "HytalePinyin",
+  "Version": "0.1.0",
+  "Description": "Hytale in Chinese with pinyin: item names, descriptions and menus with tone-marked pinyin, for learners.",
+  "Authors": [{ "Name": "Arnau", "Email": "", "Url": "https://github.com/ItsCogo-lab" }],
+  "Website": "https://github.com/ItsCogo-lab",
+  "Main": "com.itscogo.hytalepinyin.HytalePinyinPlugin",
+  "ServerVersion": ">=0.7.1",
+  "Dependencies": {},
+  "OptionalDependencies": {},
+  "LoadBefore": {},
+  "DisabledByDefault": false,
+  "IncludesAssetPack": false,
+  "SubPlugins": []
+}

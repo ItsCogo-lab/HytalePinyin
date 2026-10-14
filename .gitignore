@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.jar
+*.zip
+# Generated from Hytale's own texts (Hypixel Studios); rebuild them locally.
+glossary/out/
+client-patch/Language/
+plugin/resources/hytalepinyin/*.lang
+plugin/resources/client-patch/client-labels.tsv

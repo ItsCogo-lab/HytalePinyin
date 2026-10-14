@@ -1,0 +1,48 @@
+# Readings for words the pipeline was unsure of (out/review.tsv lists them). Only used where it is unsure, so a fix for 长 never touches 成长.
+hanzi	pinyin	note
+石	shí	checked: the dictionary guess is right here
+长	cháng	checked: the dictionary guess is right here
+壳	ké	checked: the dictionary guess is right here
+棱	léng	checked: the dictionary guess is right here
+浅	qiǎn	checked: the dictionary guess is right here
+蒙	méng	checked: the dictionary guess is right here
+菌	jūn	checked: the dictionary guess is right here
+镐	gǎo	pickaxe; hào is a place name
+扁	biǎn	checked: the dictionary guess is right here
+轴	zhóu	checked: the dictionary guess is right here
+苔	tái	checked: the dictionary guess is right here
+笼	lóng	checked: the dictionary guess is right here
+卷	juǎn	a roll/bolt of cloth (布卷)
+刺	cì	checked: the dictionary guess is right here
+骨	gǔ	checked: the dictionary guess is right here
+侧	cè	checked: the dictionary guess is right here
+干	gān	checked: the dictionary guess is right here
+曾	céng	checked: the dictionary guess is right here
+处	chù	checked: the dictionary guess is right here
+盛	chéng	to fill, to hold (盛水木桶)
+爪	zhǎo	claw (written reading)
+栖	qī	checked: the dictionary guess is right here
+尾	wěi	checked: the dictionary guess is right here
+囊	náng	checked: the dictionary guess is right here
+重	zhòng	checked: the dictionary guess is right here
+泥	ní	checked: the dictionary guess is right here
+扇	shàn	checked: the dictionary guess is right here
+落	luò	checked: the dictionary guess is right here
+占	zhàn	checked: the dictionary guess is right here
+柜	guì	checked: the dictionary guess is right here
+扳	bān	checked: the dictionary guess is right here
+秘	mì	checked: the dictionary guess is right here
+便便	biàn biàn	checked: the dictionary guess is right here
+钉	dīng	checked: the dictionary guess is right here
+雀	què	checked: the dictionary guess is right here
+踏	tà	checked: the dictionary guess is right here
+埋	mái	checked: the dictionary guess is right here
+恶	è	checked: the dictionary guess is right here
+仆	pú	checked: the dictionary guess is right here
+叉	chā	checked: three/five-pronged branches
+地	dì	checked: 源地
+称	chēng	checked: 名称
+横	héng	checked: 横滚 roll
+摩	mó	checked: 摩弗伦羊 mouflon
+背	bèi	checked: 背誓者 oathbreaker
+蛇	shé	checked: snake
